@@ -57,8 +57,7 @@ void paxserver::replicate_arg(const struct replicate_arg& repl_arg) {
     {
         
         if (paxlog.next_to_exec(it) && (*it)->vs <= repl_arg.committed) {
-            LOG(l::DEBUG, id_str() << " executing repl_arg msg from primary now : " << net->now()
-                << " "<< *it << "\n");
+            LOG(l::DEBUG, id_str() << " executing repl_arg msg from primary now\n");
             // DOUBT : does the next_to_exec automatically update the latest_exec?
             paxop_on_paxobj(*it);
             paxlog.execute(*it); //DOUBT maybe this is handled by paxop_on_paxobj
@@ -66,9 +65,9 @@ void paxserver::replicate_arg(const struct replicate_arg& repl_arg) {
         
     }
     // trim the log as possible - remove all the executed entries (they should be <= committed)
-    paxlog.trim_front([](const std::unique_ptr<tup>&)->bool{return tup->executed;});
+    paxlog.trim_front([](const std::unique_ptr<Paxlog::tup>&)->bool{return tup->executed;});
     // send repl_res ack to primary
-    LOG(l::DEBUG, id_str() << " sending repl_res msg to primary now : " << net->now()
+    LOG(l::DEBUG, id_str() << " sending repl_res msg to primary now "
         << " for vs : "<< repl_arg.vs << "\n");
     send_msg(vc_state.view.primary, std::make_unique<replicate_res>(repl_arg.vs));
     return;
@@ -95,8 +94,7 @@ void paxserver::replicate_res(const struct replicate_res& repl_res) {
     {
         
         if (paxlog.next_to_exec(it) && ((*it)->resp_cnt >= ((*it)->serv_cnt/2 + 1))) {
-            LOG(l::DEBUG, id_str() << " executing repl_res msg on primary now : " << net->now()
-                << " "<< *it << "\n");
+            LOG(l::DEBUG, id_str() << " executing repl_res msg on primary.\n");
             // DOUBT : does the next_to_exec automatically update the latest_exec?
             string result = paxop_on_paxobj(*it);
             paxlog.execute(*it); //DOUBT maybe this is handled by paxop_on_paxobj
@@ -111,7 +109,7 @@ void paxserver::replicate_res(const struct replicate_res& repl_res) {
         
     }
     // try trimming the log again
-    paxlog.trim_front([](const std::unique_ptr<tup>&)->bool{return (tup->executed && (tup->resp_cnt == tup->serv_cnt);});
+    paxlog.trim_front([](const std::unique_ptr<Paxlog::tup>&)->bool{return (tup->executed && (tup->resp_cnt == tup->serv_cnt);});
     return;
    //MASSERT(0, "replicate_res not implemented\n");
 }
@@ -121,8 +119,7 @@ void paxserver::accept_arg(const struct accept_arg& acc_arg) {
     for(auto it = paxlog.begin(); it != paxlog.end(); ++it)
     {
         if (paxlog.next_to_exec(it) && (*it)->vs <= acc_arg.committed) {
-            LOG(l::DEBUG, id_str() << " executing acc_arg msg from primary now : " << net->now()
-                << " "<< *it << "\n");
+            LOG(l::DEBUG, id_str() << " executing acc_arg msg from primary \n");
             // DOUBT : does the next_to_exec automatically update the latest_exec?
             paxop_on_paxobj(*it);
             paxlog.execute(*it); //DOUBT maybe this is handled by paxop_on_paxobj
