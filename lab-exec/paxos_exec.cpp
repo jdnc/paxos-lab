@@ -32,7 +32,7 @@ void paxserver::execute_arg(const struct execute_arg& ex_arg)
         {
            // LOG(l::DEBUG, id_str() << "pr replicate_arg msg now: " << net->now()
            //    << "to server nid: " << serv << "\n");
-            send_msg(serv, std::make_unique<replicate_arg>(new_vs, ex_arg, latest_seen));
+            send_msg(serv, std::make_unique<replicate_arg>(new_vs, ex_arg, vc_state.latest_seen));
             
         }
     }
@@ -110,7 +110,7 @@ void paxserver::replicate_res(const struct replicate_res& repl_res) {
         
     }
     // try trimming the log again
-    paxlog.trim_front([](const std::unique_ptr<Paxlog::tup>&)->bool{return (tup->executed && (tup->resp_cnt == tup->serv_cnt));});
+    paxlog.trim_front([](const std::unique_ptr<Paxlog::tup>& tup)->bool{return (tup->executed && (tup->resp_cnt == tup->serv_cnt));});
     return;
    //MASSERT(0, "replicate_res not implemented\n");
 }
@@ -128,7 +128,7 @@ void paxserver::accept_arg(const struct accept_arg& acc_arg) {
         
     }
     // trim the log as possible - remove all the executed entries (they should be <= committed)
-    paxlog.trim_front([](const std::unique_ptr<Paxlog::tup>&)->bool{return tup->executed;});
+    paxlog.trim_front([](const std::unique_ptr<Paxlog::tup>& tup)->bool{return tup->executed;});
     return;
    //MASSERT(0, "accept_arg not implemented\n");
 }
