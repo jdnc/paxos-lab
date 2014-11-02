@@ -13,7 +13,7 @@ void paxserver::execute_arg(const struct execute_arg& ex_arg)
         //LOG(l::DEBUG, "execute_arg msg for nid " << ex_arg.nid
         //    << "and rid " << ex_arg.rid
         //    << "received earlier (duplicate)\n");
-        LOG(l::DEBUG, "exec_arg duplicate: " << ex_arg.pr() << "\n");
+        LOG(l::DEBUG, "exec_arg duplicate: " << ex_arg << "\n");
         return;
     }
     // create the viwestamp to send backups
@@ -22,7 +22,7 @@ void paxserver::execute_arg(const struct execute_arg& ex_arg)
     new_vs.vid = vc_state.view.vid;
     new_vs.ts = ts;
     // primary first logs this request
-    paxlog.log(ex_arg.nid, ex_arg.rid, new_vs, ex_arg.request, get_serv_cnt(), net->now())
+    paxlog.log(ex_arg.nid, ex_arg.rid, new_vs, ex_arg.request, get_serv_cnt(vc_state.view), net->now());
     // send the replicate_arg to all the backup cohorts
     if (primary())
     {
@@ -49,8 +49,8 @@ void paxserver::replicate_arg(const struct replicate_arg& repl_arg) {
     // log the current request if not already logged
     if (! paxlog.get_tup(repl_arg.arg.vs)) {
         LOG(l::DEBUG, id_str() << " logging repl_arg msg from primary now: " << net->now
-            << "  " << repl_arg.pr() << "\n");
-        paxlog.log(repl_arg.arg.nid, repl_arg.arg.rid, repl_arg.vs, repl_arg.arg.request, get_serv_cnt(), net->now());
+            << "  " << repl_arg << "\n");
+        paxlog.log(repl_arg.arg.nid, repl_arg.arg.rid, repl_arg.vs, repl_arg.arg.request, get_serv_cnt(vc_state.view), net->now());
     }
     // execute all the requests <= the committed recvd from primary (DOUBT : should it be just less than (as in paper?))
     for(auto it = paxlog.begin(); it != paxlog.end(); ++it)
