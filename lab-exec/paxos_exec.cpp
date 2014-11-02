@@ -6,8 +6,6 @@
 #include "log.h"
 #include <string>
 
-using namespace std;
-
 void paxserver::execute_arg(const struct execute_arg& ex_arg)
 {
     // if this is a duplicate request, do nothing
@@ -50,7 +48,7 @@ void paxserver::execute_arg(const struct execute_arg& ex_arg)
 
 void paxserver::replicate_arg(const struct replicate_arg& repl_arg) {
     // log the current request if not already logged
-    if (! paxlog.get_tup(repl_arg.arg.vs)) {
+    if (! paxlog.get_tup(repl_arg.vs)) {
         //LOG(l::DEBUG, id_str() << " logging repl_arg msg from primary now: " << net->now
         //   << "  " << repl_arg << "\n");
         paxlog.log(repl_arg.arg.nid, repl_arg.arg.rid, repl_arg.vs, repl_arg.arg.request, get_serv_cnt(vc_state.view), net->now());
@@ -68,7 +66,7 @@ void paxserver::replicate_arg(const struct replicate_arg& repl_arg) {
         
     }
     // trim the log as possible - remove all the executed entries (they should be <= committed)
-    paxlog.trim_front([](const std::unique_ptr<Paxlog::tup>&)->bool{return tup->executed;});
+    paxlog.trim_front([](const std::unique_ptr<Paxlog::tup>& tup)->bool{return tup->executed;});
     // send repl_res ack to primary
     // LOG(l::DEBUG, id_str() << " sending repl_res msg to primary now "
     //    << " for vs : "<< repl_arg.vs << "\n");
@@ -79,14 +77,14 @@ void paxserver::replicate_arg(const struct replicate_arg& repl_arg) {
 
 void paxserver::replicate_res(const struct replicate_res& repl_res) {
    // if paxlog is empty or has no unexecuted entry, send accept_arg to cohorts
-    paxlog.trim_front([](const std::unique_ptr<Paxlog::tup>&)->bool{return (tup->executed && (tup->resp_cnt == tup->serv_cnt);});
+    paxlog.trim_front([](const std::unique_ptr<Paxlog::tup>& tup)->bool{return (tup->executed && (tup->resp_cnt == tup->serv_cnt));});
     if (paxlog.empty()) {
         std::set<node_id_t> servers = get_other_servers(vc_state.view);
         for(const auto& serv : servers)
         {
             //LOG(l::DEBUG, id_str() << "pr accept_arg msg now: " << net->now()
             //    << "to server nid: " << serv << "\n");
-            send_msg(serv, std::make_unique<accept_arg>(latest_seen));
+            send_msg(serv, std::make_unique<accept_arg>(vc_state.latest_seen));
             
         }
         return;
@@ -99,14 +97,14 @@ void paxserver::replicate_res(const struct replicate_res& repl_res) {
         if (paxlog.next_to_exec(it) && ((*it)->resp_cnt >= ((*it)->serv_cnt/2 + 1))) {
             //LOG(l::DEBUG, id_str() << " executing repl_res msg on primary.\n");
             // DOUBT : does the next_to_exec automatically update the latest_exec?
-            string result = paxop_on_paxobj(*it);
+            std::string result = paxop_on_paxobj(*it);
             paxlog.execute(*it); //DOUBT maybe this is handled by paxop_on_paxobj
             // send success message to client
             //LOG(l::DEBUG, id_str() << " sending success msg from primary now : " << net->now()
             //    << " result: "<< result << "rid : " << (*it)->rid << "\n");
             send_msg((*it)->src, std::make_unique<execute_success>(result, (*it)->rid));
              // update the commited field to the latest executed viewstamp
-            vc_state.latest_seen = (*it)->vs
+            vc_state.latest_seen = (*it)->vs;
             
         }
         
