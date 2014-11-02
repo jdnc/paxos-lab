@@ -32,7 +32,7 @@ void paxserver::execute_arg(const struct execute_arg& ex_arg)
         {
            // LOG(l::DEBUG, id_str() << "pr replicate_arg msg now: " << net->now()
            //    << "to server nid: " << serv << "\n");
-            send_msg(serv, std::make_unique<replicate_arg>(new_vs, ex_arg, vc_state.latest_seen));
+            send_msg(serv, std::make_unique<struct replicate_arg>(new_vs, ex_arg, vc_state.latest_seen));
             
         }
     }
@@ -40,7 +40,7 @@ void paxserver::execute_arg(const struct execute_arg& ex_arg)
     {
         //LOG(l::DEBUG, id_str() << "is not a primary now: " << net->now
         //    << " send not ok to client rid: " << ex_arg.nid << "\n");
-        send_msg(ex_arg.nid, std::make_unique<execute_fail>(vc_state.view.vid, vc_state.view.primary, ex_arg.rid));
+        send_msg(ex_arg.nid, std::make_unique<struct execute_fail>(vc_state.view.vid, vc_state.view.primary, ex_arg.rid));
     }
     return;
    //MASSERT(0, "execute_arg not implemented\n");
@@ -70,7 +70,7 @@ void paxserver::replicate_arg(const struct replicate_arg& repl_arg) {
     // send repl_res ack to primary
     // LOG(l::DEBUG, id_str() << " sending repl_res msg to primary now "
     //    << " for vs : "<< repl_arg.vs << "\n");
-    send_msg(vc_state.view.primary, std::make_unique<replicate_res>(repl_arg.vs));
+    send_msg(vc_state.view.primary, std::make_unique<struct replicate_res>(repl_arg.vs));
     return;
    //MASSERT(0, "replicate_arg not implemented\n");
 }
@@ -84,7 +84,7 @@ void paxserver::replicate_res(const struct replicate_res& repl_res) {
         {
             //LOG(l::DEBUG, id_str() << "pr accept_arg msg now: " << net->now()
             //    << "to server nid: " << serv << "\n");
-            send_msg(serv, std::make_unique<accept_arg>(vc_state.latest_seen));
+            send_msg(serv, std::make_unique<struct accept_arg>(vc_state.latest_seen));
             
         }
         return;
@@ -102,7 +102,7 @@ void paxserver::replicate_res(const struct replicate_res& repl_res) {
             // send success message to client
             //LOG(l::DEBUG, id_str() << " sending success msg from primary now : " << net->now()
             //    << " result: "<< result << "rid : " << (*it)->rid << "\n");
-            send_msg((*it)->src, std::make_unique<execute_success>(result, (*it)->rid));
+            send_msg((*it)->src, std::make_unique<struct execute_success>(result, (*it)->rid));
              // update the commited field to the latest executed viewstamp
             vc_state.latest_seen = (*it)->vs;
             
