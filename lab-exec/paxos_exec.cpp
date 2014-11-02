@@ -5,6 +5,7 @@
 #include "paxserver.h"
 #include "log.h"
 #include <string>
+# include <cstdio>
 
 void paxserver::execute_arg(const struct execute_arg& ex_arg)
 {
@@ -47,8 +48,11 @@ void paxserver::execute_arg(const struct execute_arg& ex_arg)
 }
 
 void paxserver::replicate_arg(const struct replicate_arg& repl_arg) {
+    viewstamp_t start_vs;
+    start_vs.vid = vc_state.view.vid;
+    start_vs.ts = 0ULL;
     // log the current request if not already logged
-    if (! paxlog.get_tup(repl_arg.vs)) {
+    if (paxlog.get_tup(repl_arg.vs) == nullptr) {
         //LOG(l::DEBUG, id_str() << " logging repl_arg msg from primary now: " << net->now
         //   << "  " << repl_arg << "\n");
         paxlog.log(repl_arg.arg.nid, repl_arg.arg.rid, repl_arg.vs, repl_arg.arg.request, get_serv_cnt(vc_state.view), net->now());
@@ -57,7 +61,7 @@ void paxserver::replicate_arg(const struct replicate_arg& repl_arg) {
     for(auto it = paxlog.begin(); it != paxlog.end(); ++it)
     {
         
-        if (paxlog.next_to_exec(it) && (*it)->vs <= repl_arg.committed) {
+        if ((paxlog.next_to_exec(it) || (*it)->vs.sucessor(start_vs)) && (*it)->vs <= repl_arg.committed) {
             //LOG(l::DEBUG, id_str() << " executing repl_arg msg from primary now\n");
             // DOUBT : does the next_to_exec automatically update the latest_exec?
             paxop_on_paxobj(*it);
@@ -76,9 +80,13 @@ void paxserver::replicate_arg(const struct replicate_arg& repl_arg) {
 }
 
 void paxserver::replicate_res(const struct replicate_res& repl_res) {
+    viewstamp_t start_vs;
+    start_vs.vid = vc_state.view.vid;
+    start_vs.ts = 0ULL;
    // if paxlog is empty or has no unexecuted entry, send accept_arg to cohorts
     paxlog.trim_front([](const std::unique_ptr<Paxlog::tup>& tup)->bool{return (tup->executed && (tup->resp_cnt == tup->serv_cnt));});
     if (paxlog.empty()) {
+	fprintf(stderr, "I am here !\n");
         std::set<node_id_t> servers = get_other_servers(vc_state.view);
         for(const auto& serv : servers)
         {
@@ -89,14 +97,15 @@ void paxserver::replicate_res(const struct replicate_res& repl_res) {
         }
         return;
     }
-    paxlog.incr_resp(repl_res.vs);
+    if(paxlog.incr_resp(repl_res.vs)) {fprintf(stderr, "does incr\n");};
    // otherwise execute all the requests possible on the primary and send corresponding success messages to client
     for(auto it = paxlog.begin(); it != paxlog.end(); ++it)
     {
         
-        if (paxlog.next_to_exec(it) && ((*it)->resp_cnt >= ((*it)->serv_cnt/2 + 1))) {
+        if ((paxlog.next_to_exec(it) ||  (*it)->vs.sucessor(start_vs)) && ((*it)->resp_cnt >= ((*it)->serv_cnt/2 + 1))) {
             //LOG(l::DEBUG, id_str() << " executing repl_res msg on primary.\n");
             // DOUBT : does the next_to_exec automatically update the latest_exec?
+	    fprintf(stderr, "I am here in success to client!\n");
             std::string result = paxop_on_paxobj(*it);
             paxlog.execute(*it); //DOUBT maybe this is handled by paxop_on_paxobj
             // send success message to client
