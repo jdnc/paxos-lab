@@ -4,6 +4,9 @@
 #include "paxmsg.h"
 #include "paxserver.h"
 #include "log.h"
+#include <string>
+
+using namespace std;
 
 void paxserver::execute_arg(const struct execute_arg& ex_arg)
 {
@@ -76,7 +79,7 @@ void paxserver::replicate_arg(const struct replicate_arg& repl_arg) {
 
 void paxserver::replicate_res(const struct replicate_res& repl_res) {
    // if paxlog is empty or has no unexecuted entry, send accept_arg to cohorts
-    paxlog.trim_front([](const std::unique_ptr<tup>&)->bool{return (tup->executed && (tup->resp_cnt == tup->serv_cnt);});
+    paxlog.trim_front([](const std::unique_ptr<Paxlog::tup>&)->bool{return (tup->executed && (tup->resp_cnt == tup->serv_cnt);});
     if (paxlog.empty()) {
         std::set<node_id_t> servers = get_other_servers(vc_state.view);
         for(const auto& serv : servers)
@@ -103,13 +106,13 @@ void paxserver::replicate_res(const struct replicate_res& repl_res) {
                 << " result: "<< result << "rid : " << (*it)->rid << "\n");
             send_msg((*it)->src, std::make_unique<execute_success>(result, (*it)->rid));
              // update the commited field to the latest executed viewstamp
-            latest_seen = (*it)->vs
+            vc_state.latest_seen = (*it)->vs
             
         }
         
     }
     // try trimming the log again
-    paxlog.trim_front([](const std::unique_ptr<Paxlog::tup>&)->bool{return (tup->executed && (tup->resp_cnt == tup->serv_cnt);});
+    paxlog.trim_front([](const std::unique_ptr<Paxlog::tup>&)->bool{return (tup->executed && (tup->resp_cnt == tup->serv_cnt));});
     return;
    //MASSERT(0, "replicate_res not implemented\n");
 }
@@ -127,7 +130,7 @@ void paxserver::accept_arg(const struct accept_arg& acc_arg) {
         
     }
     // trim the log as possible - remove all the executed entries (they should be <= committed)
-    paxlog.trim_front([](const std::unique_ptr<tup>&)->bool{return tup->executed;});
+    paxlog.trim_front([](const std::unique_ptr<Paxlog::tup>&)->bool{return tup->executed;});
     return;
    //MASSERT(0, "accept_arg not implemented\n");
 }
