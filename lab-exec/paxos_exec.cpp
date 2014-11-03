@@ -18,16 +18,17 @@ void paxserver::execute_arg(const struct execute_arg& ex_arg)
         //LOG(l::DEBUG, "exec_arg duplicate: " << ex_arg << "\n");
         return;
     }
-    // create the viwestamp to send backups
-    viewstamp_t new_vs;
-    new_vs.vid = vc_state.view.vid;
-    new_vs.ts = ts;
-    ts++;
-    // primary first logs this request
-    paxlog.log(ex_arg.nid, ex_arg.rid, new_vs, ex_arg.request, get_serv_cnt(vc_state.view), net->now());
+  
     // send the replicate_arg to all the backup cohorts
     if (primary())
     {
+      // create the viwestamp to send backups
+      viewstamp_t new_vs;
+      new_vs.vid = vc_state.view.vid;
+      new_vs.ts = ts;
+      ts++;
+      // primary first logs this request
+      paxlog.log(ex_arg.nid, ex_arg.rid, new_vs, ex_arg.request, get_serv_cnt(vc_state.view), net->now());
         std::set<node_id_t> servers = get_other_servers(vc_state.view);
         for(const auto& serv : servers)
         {
@@ -53,7 +54,7 @@ void paxserver::replicate_arg(const struct replicate_arg& repl_arg) {
     // start_vs.vid = vc_state.view.vid;
     // start_vs.ts = 0ULL;
     // log the current request if not already logged
-    if (paxlog.get_tup(repl_arg.vs) == nullptr) {
+  if ((paxlog.get_tup(repl_arg.vs) == nullptr)) {
         //LOG(l::DEBUG, id_str() << " logging repl_arg msg from primary now: " << net->now
         //   << "  " << repl_arg << "\n");
         paxlog.log(repl_arg.arg.nid, repl_arg.arg.rid, repl_arg.vs, repl_arg.arg.request, get_serv_cnt(vc_state.view), net->now());
@@ -66,7 +67,7 @@ void paxserver::replicate_arg(const struct replicate_arg& repl_arg) {
             //LOG(l::DEBUG, id_str() << " executing repl_arg msg from primary now\n");
             // DOUBT : does the next_to_exec automatically update the latest_exec?
             paxop_on_paxobj(*it);
-            paxlog.execute(*it); //DOUBT maybe this is handled by paxop_on_paxobj
+	    paxlog.execute(*it); //DOUBT maybe this is handled by paxop_on_paxobj
         }
         
     }
@@ -94,7 +95,7 @@ void paxserver::replicate_res(const struct replicate_res& repl_res) {
     }
   }
   if (paxlog.empty() || all_executed) {
-    	fprintf(stderr, "I am here !\n");
+    //fprintf(stderr, "I am here !\n");
         std::set<node_id_t> servers = get_other_servers(vc_state.view);
         for(const auto& serv : servers)
         {
@@ -105,19 +106,19 @@ void paxserver::replicate_res(const struct replicate_res& repl_res) {
         }
         return;
     }
-    if(paxlog.incr_resp(repl_res.vs)) {fprintf(stderr, "does incr\n");};
+  (paxlog.incr_resp(repl_res.vs)); //{fprintf(stderr, "does incr\n");};
    // otherwise execute all the requests possible on the primary and send corresponding success messages to client
     for(auto it = paxlog.begin(); it != paxlog.end(); ++it)
     {
-      fprintf(stderr, "Is this tupple executable %d\n", paxlog.next_to_exec(it));
-      fprintf(stderr, "the ts of this tuple %ld\n", (*it)->vs.ts );
-      fprintf(stderr, "the last exec ts is %ld\n", paxlog.latest_exec().ts);
-	fprintf(stderr, "Tuple details executed = %d, serv_cnt = %d, resp_cnt = %d, ts  = %d\n", (*it)->executed, (*it)->serv_cnt, (*it)->resp_cnt, (*it)->vs.ts);
+      //fprintf(stderr, "Is this tupple executable %d\n", paxlog.next_to_exec(it));
+      //fprintf(stderr, "the ts of this tuple %ld\n", (*it)->vs.ts );
+      //fprintf(stderr, "the last exec ts is %ld\n", paxlog.latest_exec().ts);
+      //fprintf(stderr, "Tuple details executed = %d, serv_cnt = %d, resp_cnt = %d, ts  = %d\n", (*it)->executed, (*it)->serv_cnt, (*it)->resp_cnt, (*it)->vs.ts);
        // if ((paxlog.next_to_exec(it) ||  (*it)->vs.sucessor(start_vs))  && ((*it)->resp_cnt >= ((*it)->serv_cnt/2 + 1))) {
 	if ((*it)->resp_cnt > (*it)->serv_cnt/2 && paxlog.next_to_exec(it)) {	
 	   //LOG(l::DEBUG, id_str() << " executing repl_res msg on primary.\n");
             // DOUBT : does the next_to_exec automatically update the latest_exec?
- 	    fprintf(stderr, "I am here in success to client!\n");
+ 	    //fprintf(stderr, "I am here in success to client!\n");
             std::string result = paxop_on_paxobj(*it);
             paxlog.execute(*it); //DOUBT maybe this is handled by paxop_on_paxobj
             // send success message to client
