@@ -10,12 +10,12 @@
 void paxserver::execute_arg(const struct execute_arg& ex_arg)
 {   
     // send the replicate_arg to all the backup cohorts
-    if (primary())
+    if (primary() && ex_arg.vid == vc_state.view.vid)
     {
          // if this is a duplicate request, do nothing
 	 if (paxlog.find_rid(ex_arg.nid, ex_arg.rid))
 	 {
-	     return;
+	   return;
 	 }
 	// create the viwestamp to send backups
 	viewstamp_t new_vs;
@@ -42,11 +42,13 @@ void paxserver::replicate_arg(const struct replicate_arg& repl_arg) {
   if ((paxlog.get_tup(repl_arg.vs) == nullptr)) 
     {
         paxlog.log(repl_arg.arg.nid, repl_arg.arg.rid, repl_arg.vs, repl_arg.arg.request, get_serv_cnt(vc_state.view), net->now());
+        send_msg(vc_state.view.primary, std::make_unique<struct replicate_res>(repl_arg.vs));
+	paxlog.set_latest_accept(repl_arg.vs);
     }
     // execute all the requests <= the committed recvd from primary (DOUBT : should it be just less than (as in paper?))
     for(auto it = paxlog.begin(); it != paxlog.end(); ++it)
     {
-        if (paxlog.next_to_exec(it) && (*it)->vs <= repl_arg.committed) 
+      if (paxlog.next_to_exec(it) && (*it)->vs < paxlog.latest_accept()) 
         {
             paxop_on_paxobj(*it);
 	    paxlog.execute(*it); //DOUBT maybe this is handled by paxop_on_paxobj
@@ -56,7 +58,6 @@ void paxserver::replicate_arg(const struct replicate_arg& repl_arg) {
     // trim the log as possible - remove all the executed entries (they should be <= committed)
     paxlog.trim_front([](const std::unique_ptr<Paxlog::tup>& tup)->bool{return tup->executed;});
     // send repl_res ack to primary
-    send_msg(vc_state.view.primary, std::make_unique<struct replicate_res>(repl_arg.vs));
     return;
 }
 
@@ -75,7 +76,6 @@ void paxserver::replicate_res(const struct replicate_res& repl_res)
         for(const auto& serv : servers)
         {
             send_msg(serv, std::make_unique<struct accept_arg>(vc_state.latest_seen));
-            
         }
         return;
     }
@@ -95,16 +95,17 @@ void paxserver::replicate_res(const struct replicate_res& repl_res)
             
         }        
     }
-    // try trimming the log again
+    // try trimming the log
     paxlog.trim_front([](const std::unique_ptr<Paxlog::tup>& tup)->bool{return (tup->executed && (tup->resp_cnt == tup->serv_cnt));});
     return;
 }
 
 void paxserver::accept_arg(const struct accept_arg& acc_arg) {
     // execute all the requests <= the committed recvd from primary
+    paxlog.set_latest_accept(acc_arg.committed);
     for(auto it = paxlog.begin(); it != paxlog.end(); ++it)
     {
-        if (paxlog.next_to_exec(it) && (*it)->vs <= acc_arg.committed) {
+      if (paxlog.next_to_exec(it) && (*it)->vs <= paxlog.latest_accept()) {
             // DOUBT : does the next_to_exec automatically update the latest_exec?
             paxop_on_paxobj(*it);
             paxlog.execute(*it); //DOUBT maybe this is handled by paxop_on_paxobj
